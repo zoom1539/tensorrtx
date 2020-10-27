@@ -286,7 +286,7 @@ int main(int argc, char** argv)
         APIToModel(1, &modelStream);
         assert(modelStream != nullptr);
 
-        std::ofstream p("resnet50.engine");
+        std::ofstream p("resnet50.engine", std::ios::binary);
         if (!p)
         {
             std::cerr << "could not open plan output file" << std::endl;
