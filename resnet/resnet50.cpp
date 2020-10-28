@@ -7,11 +7,12 @@
 #include <sstream>
 #include <vector>
 #include <chrono>
+#include "opencv2/opencv.hpp"
 
 // stuff we know about the network and the input/output blobs
-static const int INPUT_H = 224;
-static const int INPUT_W = 224;
-static const int OUTPUT_SIZE = 1000;
+static const int INPUT_H = 64;
+static const int INPUT_W = 64;
+static const int OUTPUT_SIZE = 6;
 
 const char* INPUT_BLOB_NAME = "data";
 const char* OUTPUT_BLOB_NAME = "prob";
@@ -147,11 +148,15 @@ ICudaEngine* createEngine(unsigned int maxBatchSize, IBuilder* builder, DataType
     ITensor* data = network->addInput(INPUT_BLOB_NAME, dt, Dims3{3, INPUT_H, INPUT_W});
     assert(data);
 
-    std::map<std::string, Weights> weightMap = loadWeights("../resnet50.wts");
+    std::map<std::string, Weights> weightMap = loadWeights("../resnet50_fc.wts");
     Weights emptywts{DataType::kFLOAT, nullptr, 0};
+
+	std::cout << "0\n";
 
     // Add convolution layer with 6 outputs and a 5x5 filter.
     IConvolutionLayer* conv1 = network->addConvolution(*data, 64, DimsHW{7, 7}, weightMap["conv1.weight"], emptywts);
+	std::cout << "0.1\n";
+
     assert(conv1);
     conv1->setStride(DimsHW{2, 2});
     conv1->setPadding(DimsHW{3, 3});
@@ -168,14 +173,18 @@ ICudaEngine* createEngine(unsigned int maxBatchSize, IBuilder* builder, DataType
     pool1->setStride(DimsHW{2, 2});
     pool1->setPadding(DimsHW{1, 1});
 
+	std::cout << "1\n";
+
     IActivationLayer* x = bottleneck(network, weightMap, *pool1->getOutput(0), 64, 64, 1, "layer1.0.");
     x = bottleneck(network, weightMap, *x->getOutput(0), 256, 64, 1, "layer1.1.");
     x = bottleneck(network, weightMap, *x->getOutput(0), 256, 64, 1, "layer1.2.");
+	std::cout << "2\n";
 
     x = bottleneck(network, weightMap, *x->getOutput(0), 256, 128, 2, "layer2.0.");
     x = bottleneck(network, weightMap, *x->getOutput(0), 512, 128, 1, "layer2.1.");
     x = bottleneck(network, weightMap, *x->getOutput(0), 512, 128, 1, "layer2.2.");
     x = bottleneck(network, weightMap, *x->getOutput(0), 512, 128, 1, "layer2.3.");
+	std::cout << "3\n";
 
     x = bottleneck(network, weightMap, *x->getOutput(0), 512, 256, 2, "layer3.0.");
     x = bottleneck(network, weightMap, *x->getOutput(0), 1024, 256, 1, "layer3.1.");
@@ -183,25 +192,65 @@ ICudaEngine* createEngine(unsigned int maxBatchSize, IBuilder* builder, DataType
     x = bottleneck(network, weightMap, *x->getOutput(0), 1024, 256, 1, "layer3.3.");
     x = bottleneck(network, weightMap, *x->getOutput(0), 1024, 256, 1, "layer3.4.");
     x = bottleneck(network, weightMap, *x->getOutput(0), 1024, 256, 1, "layer3.5.");
+	std::cout << "4\n";
 
     x = bottleneck(network, weightMap, *x->getOutput(0), 1024, 512, 2, "layer4.0.");
     x = bottleneck(network, weightMap, *x->getOutput(0), 2048, 512, 1, "layer4.1.");
     x = bottleneck(network, weightMap, *x->getOutput(0), 2048, 512, 1, "layer4.2.");
+	std::cout << "5\n";
 
+#if 0
     IPoolingLayer* pool2 = network->addPooling(*x->getOutput(0), PoolingType::kAVERAGE, DimsHW{7, 7});
     assert(pool2);
     pool2->setStride(DimsHW{1, 1});
-    
+
     IFullyConnectedLayer* fc1 = network->addFullyConnected(*pool2->getOutput(0), 1000, weightMap["fc.weight"], weightMap["fc.bias"]);
     assert(fc1);
 
     fc1->getOutput(0)->setName(OUTPUT_BLOB_NAME);
     std::cout << "set name out" << std::endl;
     network->markOutput(*fc1->getOutput(0));
+#else
+	IPoolingLayer* pool2 = network->addPooling(*x->getOutput(0), PoolingType::kAVERAGE, DimsHW{ 2, 2 });
+	assert(pool2);
+	pool2->setStride(DimsHW{ 1, 1 });
+
+	IFullyConnectedLayer* fc1 = network->addFullyConnected(*pool2->getOutput(0), OUTPUT_SIZE, weightMap["fc.weight"], weightMap["fc.bias"]);
+	assert(fc1);
+
+	fc1->getOutput(0)->setName(OUTPUT_BLOB_NAME);
+	std::cout << "set name out" << std::endl;
+	network->markOutput(*fc1->getOutput(0));
+	
+	//for (int i = 0; i < 8; i++)
+	//{
+	//	std::cout << pool2->getOutput(0)->getDimensions().d[i] << std::endl;
+	//}
+	//std::cout << "custom1\n";
+	//IFullyConnectedLayer* fc10 = network->addFullyConnected(*pool2->getOutput(0), 256, weightMap["fc.0.weight"], weightMap["fc.0.bias"]);
+	//std::cout << "custom2\n";
+	//assert(fc10);
+
+	///*IActivationLayer* relu10 = network->addActivation(*fc10->getOutput(0), ActivationType::kRELU);
+	//std::cout << "custom3\n";
+	//assert(relu10);
+	//IFullyConnectedLayer* fc11 = network->addFullyConnected(*relu10->getOutput(0), OUTPUT_SIZE, weightMap["fc.3.weight"], weightMap["fc.3.bias"]);
+	//std::cout << "custom4\n";
+	//assert(fc11);*/
+
+	////ISoftMaxLayer* sm = network->addSoftMax(*fc11->getOutput(0));
+	////std::cout << "custom5\n";
+	////assert(sm);
+
+	//fc10->getOutput(0)->setName(OUTPUT_BLOB_NAME);
+	//std::cout << "set name out" << std::endl;
+	//network->markOutput(*fc10->getOutput(0));
+#endif
 
     // Build engine
     builder->setMaxBatchSize(maxBatchSize);
     builder->setMaxWorkspaceSize(1 << 20);
+	std::cout << "build out1" << std::endl;
     ICudaEngine* engine = builder->buildCudaEngine(*network);
     std::cout << "build out" << std::endl;
 
@@ -222,9 +271,12 @@ void APIToModel(unsigned int maxBatchSize, IHostMemory** modelStream)
     // Create builder
     IBuilder* builder = createInferBuilder(gLogger);
 
+	std::cout << "10\n";
+
     // Create model to populate the network, then set the outputs and create an engine
     ICudaEngine* engine = createEngine(maxBatchSize, builder, DataType::kFLOAT);
     assert(engine != nullptr);
+	std::cout << "11\n";
 
     // Serialize the engine
     (*modelStream) = engine->serialize();
@@ -312,9 +364,31 @@ int main(int argc, char** argv)
 
 
     // Subtract mean from image
+#if 0
     float data[3 * INPUT_H * INPUT_W];
     for (int i = 0; i < 3 * INPUT_H * INPUT_W; i++)
         data[i] = 1.0;
+#else
+	//float data[3 * INPUT_H * INPUT_W];
+	cv::Mat img = cv::imread("G:/aoi_resnet/test/signs_3/img_0092.png");
+	img.convertTo(img, CV_32FC3, 1 / 255.0);
+
+	float *img_data = (float *)img.data;
+	//std::cout << "data0: " << data[0] << std::endl;
+
+	/*int img_size = 3 * INPUT_H * INPUT_W;
+	float data[3 * INPUT_H * INPUT_W];
+	int count = 0;
+	for (int i = 0; i < 3; i++)
+	{
+		for (int j = 0; j < img_size; j+=3)
+		{
+			data[count] = img_data[j + i];
+			count++;
+		}
+	}*/
+
+#endif
 
     IRuntime* runtime = createInferRuntime(gLogger);
     assert(runtime != nullptr);
@@ -325,8 +399,21 @@ int main(int argc, char** argv)
 
     // Run inference
     float prob[OUTPUT_SIZE];
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < 10; i++) {
         auto start = std::chrono::system_clock::now();
+
+		int img_size = 3 * INPUT_H * INPUT_W;
+		float data[3 * INPUT_H * INPUT_W];
+		int count = 0;
+		for (int i = 0; i < 3; i++)
+		{
+			for (int j = 0; j < img_size; j += 3)
+			{
+				data[count] = img_data[j + i];
+				count++;
+			}
+		}
+
         doInference(*context, data, prob, 1);
         auto end = std::chrono::system_clock::now();
         std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms" << std::endl;
@@ -339,16 +426,16 @@ int main(int argc, char** argv)
 
     // Print histogram of the output distribution
     std::cout << "\nOutput:\n\n";
-    for (unsigned int i = 0; i < 10; i++)
+    for (unsigned int i = 0; i < OUTPUT_SIZE; i++)
     {
         std::cout << prob[i] << ", ";
     }
     std::cout << std::endl;
-    for (unsigned int i = 0; i < 10; i++)
-    {
-        std::cout << prob[OUTPUT_SIZE - 10 + i] << ", ";
-    }
-    std::cout << std::endl;
+	/*for (unsigned int i = 0; i < 10; i++)
+	{
+		std::cout << prob[OUTPUT_SIZE - 10 + i] << ", ";
+	}
+	std::cout << std::endl;*/
 
     return 0;
 }
