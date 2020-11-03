@@ -19,7 +19,7 @@ void main()
 	resnet50.init(num_class);
 
 	//
-	cv::Mat img = cv::imread("G:/aoi_resnet/test/signs_3/img_0082.png");
+	cv::Mat img = cv::imread("../img_0082.png");
 
 	clock_t time = clock();
 	int class_id;
