@@ -21,11 +21,15 @@ void main()
 	//
 	cv::Mat img = cv::imread("../img_0082.png");
 
-	clock_t time = clock();
-	int class_id;
-	resnet50.classify(img, class_id);
+	for (int i = 0; i < 10; i++)
+	{
+		clock_t time = clock();
+		int class_id;
+		resnet50.classify(img, class_id);
 
-	std::cout << "cost time: " << clock() - time << "ms" << std::endl;
+		std::cout << "cost time: " << clock() - time << "ms" << std::endl;
 
-	std::cout << "class_id: " << class_id << std::endl;
+		std::cout << "class_id: " << class_id << std::endl;
+	}
+	
 }
