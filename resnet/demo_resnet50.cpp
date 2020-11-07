@@ -30,6 +30,8 @@ void main()
 		std::cout << "cost time: " << clock() - time << "ms" << std::endl;
 
 		std::cout << "class_id: " << class_id << std::endl;
+
+		std::cin.get();
 	}
 	
 }
