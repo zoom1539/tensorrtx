@@ -6,8 +6,8 @@ void main()
 	Resnet50 resnet50;
 
 	//
-	std::string path_wts = "../resnet50_fc.wts";
-	int num_class = 6;
+	std::string path_wts = "resnet50_fc.wts";
+	int num_class = 4;
 
 	std::fstream fs;
 	fs.open("resnet50.engine", std::ios::in);
@@ -19,7 +19,7 @@ void main()
 	resnet50.init(num_class);
 
 	//
-	cv::Mat img = cv::imread("../img_0082.png");
+	cv::Mat img = cv::imread("F:/zmh/val_img_resnet/test/243.bmp");
 
 	for (int i = 0; i < 10; i++)
 	{
