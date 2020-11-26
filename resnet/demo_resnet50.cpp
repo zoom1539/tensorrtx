@@ -6,8 +6,8 @@ void main()
 	Resnet50 resnet50;
 
 	//
-	std::string path_wts = "resnet50_fc.wts";
-	int num_class = 4;
+	std::string path_wts = "resnet50.wts";
+	int num_class = 2;
 
 	std::fstream fs;
 	fs.open("resnet50.engine", std::ios::in);
