@@ -19,7 +19,7 @@ void main()
 	resnet50.init(num_class);
 
 	//
-	cv::Mat img = cv::imread("F:/zmh/val_img_resnet/test/243.bmp");
+	cv::Mat img = cv::imread("test.bmp");
 
 	for (int i = 0; i < 10; i++)
 	{
